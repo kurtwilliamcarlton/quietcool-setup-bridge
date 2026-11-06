@@ -89,6 +89,7 @@
   <p>The bridge now finds your QuietCool controller automatically. After you send its home Wi-Fi settings, it checks for <code>quietcool.local</code> and searches your Yellow's Ethernet subnet. You don't need to know or enter an IP address.</p>
   <div class="actions"><button type="button" id="verifyLan">Retry automatic discovery</button></div>
   <div id="verifyResult" class="notice neutral" role="status" aria-live="polite">Waiting to check the home network automatically. This confirms network reachability, not Home Assistant integration registration.</div>
+  <p class="help">If the device is not found, check that your home Wi-Fi name and password are correct and that the ESP32 has power. The bridge will retry. Avoid factory-resetting the ESP32 until troubleshooting is complete.</p>
   <div class="finish-box">
     <h3>Disconnect temporary setup Wi-Fi</h3>
     <p>After LAN verification, disconnect and disable the Yellow's <code>wlan0</code> so it won't rejoin an ESP32 fallback network after a future factory reset.</p>
@@ -96,9 +97,16 @@
     <div id="cleanupResult" class="result" role="status" aria-live="polite"></div>
   </div>
   <div id="completed" class="notice success" hidden>
-    <strong>Setup finished!</strong>
-    <p>The ESP32 answered on your home network, and temporary Yellow Wi-Fi is disabled.</p>
-    <p><strong>Next outside this app:</strong> In Home Assistant, go to <strong>Settings → Devices & services → Add integration → ESPHome</strong>. Use the discovered IP shown above if Home Assistant does not find the ESP32 automatically. Then verify the fan entities work.</p>
+    <strong>QuietCool is ready on your home network!</strong>
+    <div class="grid2">
+      <div><span class="small">Discovered home-network IP</span><strong id="summaryIp">—</strong></div>
+      <div><span class="small">ESP32 MAC observed during setup</span><strong id="summaryMac">—</strong></div>
+      <div><span class="small">Temporary Wi-Fi</span><strong>Disabled on Yellow</strong></div>
+      <div><span class="small">Ethernet</span><strong>Connected</strong></div>
+    </div>
+    <p><strong>Next in Home Assistant:</strong> Go to <strong>Settings → Devices & services → Add integration → ESPHome</strong>. If the device was not discovered, enter the displayed IP there. Confirm your fan entities are available.</p>
+    <p class="help">The bridge checked ESPHome service reachability, not Home Assistant integration registration. The initial MAC was recorded but could not be independently confirmed over the ESPHome web/API ports.</p>
+    <button id="startAgain" type="button">Set up another device</button>
   </div>
   <p class="help">If verification fails, do not assume setup succeeded. You can return to the previous step, confirm the password, and check the router. If you need to leave now, you can still manually disable wlan0 in Home Assistant's Network settings.</p>
 </section>
@@ -107,7 +115,7 @@
   <span id="navHint" class="help" aria-live="polite"></span>
   <button type="button" id="nextBtn" class="primary inline-primary">Get started</button>
 </div>
-<footer><span>Home Assistant Ingress · Safety-first guided setup</span><span>QuietCool Setup Bridge v1.4 · Automatic discovery · No firmware upload</span></footer>
+<footer><span>Home Assistant Ingress · Safety-first guided setup</span><span>QuietCool Setup Bridge v1.5 · Automatic discovery · No firmware upload</span></footer>
 </main>
 </body>
 </html>

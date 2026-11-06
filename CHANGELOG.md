@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.0 — reliability and safety
+
+- Record ESP32 MAC during the identification step and recheck its captive-portal MAC immediately before sending home Wi-Fi credentials. Reject changed/missing identities with HTTP 409.
+- Improve troubleshooting text when home-network discovery fails.
+- Add a polished completion view showing discovered LAN IP, recorded setup MAC, and temporary Wi-Fi cleanup status.
+- Add a **Set up another device** button that resets wizard state without reconnecting the Yellow's Wi-Fi automatically.
+- Preserve manual confirmation before disabling temporary Yellow wlan0 Wi-Fi.
+- Do not claim that port checks prove the same ESP32 MAC or that Home Assistant has registered the ESPHome integration.
+
 ## 1.4.0 — automatic home-network verification
 
 - Remove the manual IP-address field from the final wizard step.
