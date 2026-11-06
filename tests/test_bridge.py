@@ -1,0 +1,99 @@
+"""Local unit tests: fake upstream; no real network or ESP32 required."""
+import importlib.util
+import json
+import pathlib
+import threading
+import unittest
+from http.server import ThreadingHTTPServer
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+from unittest.mock import patch
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+MODULE = ROOT / "quietcool_bridge" / "server.py"
+spec = importlib.util.spec_from_file_location("quietcool_setup_bridge", MODULE)
+bridge = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(bridge)
+
+DEVICE_JSON = {
+    "name": "quietcool",
+    "mac": "AA:BB:CC:DD:EE:01",
+    "aps": [{}, {"ssid": "ExampleHome", "rssi": -52, "lock": True}],
+}
+
+
+class ServerTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), bridge.Handler)
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+        cls.url = "http://127.0.0.1:%d" % cls.server.server_port
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.thread.join(timeout=5)
+
+    def fake_request(self, path, timeout=5):
+        if path == "/config.json":
+            return (200, {}, json.dumps(DEVICE_JSON).encode())
+        if path.startswith("/wifisave?"):
+            return (200, {}, b"Saved. Connecting...")
+        raise ValueError("unexpected upstream path")
+
+    def test_assets(self):
+        for path in ("/", "/app.css", "/app.js", "/healthz"):
+            with urlopen(self.url + path, timeout=5) as response:
+                self.assertEqual(response.status, 200)
+
+    def test_status(self):
+        with patch.object(bridge, "device_request", self.fake_request):
+            with urlopen(self.url + "/status", timeout=5) as response:
+                data = json.load(response)
+        self.assertTrue(data["connected"])
+        self.assertEqual(data["device"]["name"], "quietcool")
+        self.assertEqual(data["device"]["aps"][0]["ssid"], "ExampleHome")
+
+    def test_unexpected_device_is_rejected(self):
+        fake = dict(DEVICE_JSON, name="other-device")
+        with patch.object(bridge, "device_request", return_value=(200, {}, json.dumps(fake).encode())):
+            with urlopen(self.url + "/status", timeout=5) as response:
+                self.assertFalse(json.load(response)["connected"])
+
+    def post(self, obj):
+        req = Request(self.url + "/provision", json.dumps(obj).encode(),
+                      {"Content-Type": "application/json"}, method="POST")
+        try:
+            with urlopen(req, timeout=5) as response:
+                return response.status, json.load(response)
+        except HTTPError as error:
+            return error.code, json.loads(error.read())
+
+    def test_provision(self):
+        calls = []
+        def record(path, timeout=5):
+            calls.append(path)
+            return self.fake_request(path, timeout)
+        with patch.object(bridge, "device_request", record):
+            status, data = self.post({"ssid": "ExampleHome", "psk": "samplepass123"})
+        self.assertEqual(status, 200)
+        self.assertTrue(data["ok"])
+        self.assertIn("/wifisave?", calls[-1])
+        self.assertIn("psk=samplepass123", calls[-1])
+        self.assertNotIn("samplepass123", json.dumps(data))
+
+    def test_reject_short_psk(self):
+        status, data = self.post({"ssid": "ExampleHome", "psk": "short"})
+        self.assertEqual(status, 400)
+        self.assertFalse(data["ok"])
+
+    def test_reject_other_path(self):
+        with self.assertRaises(HTTPError) as error:
+            urlopen(self.url + "/provision", timeout=5)
+        self.assertEqual(error.exception.code, 404)
+
+
+if __name__ == "__main__":
+    unittest.main()
