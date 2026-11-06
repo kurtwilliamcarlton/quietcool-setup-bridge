@@ -351,9 +351,16 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(psk, str) or (psk and not (8 <= len(psk.encode("utf-8")) <= 63)):
                 return self.json(400, {"ok": False, "message": "Password must be 8-63 bytes, or blank for an open network"})
             ethernet_guard()
-            # Recheck identity at the instant of provisioning so we do not send
-            # credentials to an unrelated device that also uses 192.168.4.1.
-            get_config()
+            # The browser remembers the fallback MAC during Step 4. Enforce
+            # that the device still has the same MAC immediately before save.
+            # This protects against an accidental device switch, but does not
+            # cryptographically authenticate the ESP32.
+            expected_mac = payload.get("expected_mac")
+            if not isinstance(expected_mac, str) or not re.fullmatch(r"[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5}", expected_mac):
+                return self.json(409, {"ok": False, "message": "Device identity expired. Go back to Step 4 and identify the ESP32 again."})
+            observed = get_config()
+            if observed["mac"] != expected_mac.upper():
+                return self.json(409, {"ok": False, "message": "ESP32 identity changed! Stop setup and recheck the device on Step 4."})
             ethernet_guard()
             query = urlencode({"ssid": ssid, "psk": psk})
             status, _, _ = device_request("/wifisave?" + query, timeout=7)
