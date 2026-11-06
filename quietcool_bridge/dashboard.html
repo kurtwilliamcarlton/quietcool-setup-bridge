@@ -86,11 +86,9 @@
 <section class="card wizard-page" data-step="5" hidden>
   <span class="kicker">STEP 6 · VERIFY & FINISH</span>
   <h2>Confirm the ESP32 joined your home network</h2>
-  <p>Find the ESP32's new LAN IP in your router, or check <code>quietcool.local</code> from a browser on your home network. Then enter its IP here to test whether the Yellow can reach its web server <strong>over Ethernet</strong>.</p>
-  <label for="lanIp">ESP32 home-network IP address</label>
-  <input id="lanIp" inputmode="decimal" placeholder="192.168.33.xxx" autocomplete="off">
-  <div class="actions"><button type="button" id="verifyLan">Verify ESP32 on Ethernet</button></div>
-  <div id="verifyResult" class="notice neutral" role="status" aria-live="polite">Not verified yet. This is a network check, not confirmation that Home Assistant has added the ESPHome integration.</div>
+  <p>The bridge now finds your QuietCool controller automatically. After you send its home Wi-Fi settings, it checks for <code>quietcool.local</code> and searches your Yellow's Ethernet subnet. You don't need to know or enter an IP address.</p>
+  <div class="actions"><button type="button" id="verifyLan">Retry automatic discovery</button></div>
+  <div id="verifyResult" class="notice neutral" role="status" aria-live="polite">Waiting to check the home network automatically. This confirms network reachability, not Home Assistant integration registration.</div>
   <div class="finish-box">
     <h3>Disconnect temporary setup Wi-Fi</h3>
     <p>After LAN verification, disconnect and disable the Yellow's <code>wlan0</code> so it won't rejoin an ESP32 fallback network after a future factory reset.</p>
@@ -100,7 +98,7 @@
   <div id="completed" class="notice success" hidden>
     <strong>Setup finished!</strong>
     <p>The ESP32 answered on your home network, and temporary Yellow Wi-Fi is disabled.</p>
-    <p><strong>Next outside this app:</strong> In Home Assistant, go to <strong>Settings → Devices & services → Add integration → ESPHome</strong>. Add the controller by its new LAN IP if Home Assistant did not discover it automatically. Then verify the fan entities work.</p>
+    <p><strong>Next outside this app:</strong> In Home Assistant, go to <strong>Settings → Devices & services → Add integration → ESPHome</strong>. Use the discovered IP shown above if Home Assistant does not find the ESP32 automatically. Then verify the fan entities work.</p>
   </div>
   <p class="help">If verification fails, do not assume setup succeeded. You can return to the previous step, confirm the password, and check the router. If you need to leave now, you can still manually disable wlan0 in Home Assistant's Network settings.</p>
 </section>
@@ -109,7 +107,7 @@
   <span id="navHint" class="help" aria-live="polite"></span>
   <button type="button" id="nextBtn" class="primary inline-primary">Get started</button>
 </div>
-<footer><span>Home Assistant Ingress · Safety-first guided setup</span><span>QuietCool Setup Bridge v1.3 · No firmware upload</span></footer>
+<footer><span>Home Assistant Ingress · Safety-first guided setup</span><span>QuietCool Setup Bridge v1.4 · Automatic discovery · No firmware upload</span></footer>
 </main>
 </body>
 </html>

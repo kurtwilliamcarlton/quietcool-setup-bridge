@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.0 — automatic home-network verification
+
+- Remove the manual IP-address field from the final wizard step.
+- Automatically retry discovery after saving the ESP32's new home Wi-Fi settings.
+- Try quietcool.local and scan only the Yellow Ethernet IPv4 subnet (up to /24).
+- Require ESPHome API and web-server responses, plus QuietCool web/hostname identification.
+- Display the discovered IP automatically or a helpful retry message.
+- Retain the explicit secondary Wi-Fi disable step and all Ethernet safety interlocks.
+
 ## 1.3.0 — guided setup wizard
 
 - Replace the single-page tool with six guided screens: introduction, Ethernet safety, fallback connection, ESP32 identity, Wi-Fi provisioning, and LAN verification/cleanup.

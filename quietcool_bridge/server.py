@@ -9,6 +9,7 @@ import gzip
 import ipaddress
 import socket
 import http.client
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import os
 import re
@@ -119,27 +120,82 @@ MAX_BODY = 2048
 MAX_UPSTREAM = 65536
 
 
-def verify_lan_device(ip_text):
-    """Check home-LAN device reachability, not ESPHome integration registration."""
-    eth = ethernet_guard()
-    address = ipaddress.IPv4Address(ip_text)
-    lan = ipaddress.IPv4Interface((eth.get("ipv4") or {}).get("address", [])[0])
-    if address not in lan.network or address in (lan.ip, lan.network.network_address, lan.network.broadcast_address):
-        raise ValueError("ESP32 must have an IP on the Ethernet subnet")
-    if str(address) == "192.168.4.1" or address.is_loopback or address.is_multicast:
-        raise ValueError("Invalid ESP32 LAN IP")
-    with socket.create_connection((str(address), 6053), timeout=2.5):
-        pass
-    connection = http.client.HTTPConnection(str(address), 80, timeout=3.5)
+def _probe_quietcool(address, trusted_hostname=False):
+    """Identify a QuietCool ESPHome web server, not just an open TCP port."""
+    address = str(address)
     try:
-        connection.request("GET", "/", headers={"Accept-Encoding": "identity"})
-        response = connection.getresponse()
-        if response.status != 200 or not response.read(65536):
-            raise ValueError("Device web server unavailable")
-    finally:
-        connection.close()
+        with socket.create_connection((address, 6053), timeout=0.9):
+            pass
+        conn = http.client.HTTPConnection(address, 80, timeout=1.5)
+        try:
+            conn.request("GET", "/", headers={"Accept-Encoding": "identity", "Host": address})
+            response = conn.getresponse()
+            # Never inspect a large or non-text response from unrelated LAN devices.
+            body = response.read(32768) if response.status == 200 else b""
+            content_type = response.getheader("Content-Type", "")
+        finally:
+            conn.close()
+        text = body.decode("utf-8", "ignore").lower()
+        if "html" in content_type.lower() and (trusted_hostname or "quietcool" in text):
+            return address
+        # Some ESPHome frontends render the device name in JavaScript. The
+        # LAN reverse DNS name may still identify this node as quietcool.
+        try:
+            reverse_name = socket.gethostbyaddr(address)[0].lower().rstrip(".")
+        except OSError:
+            reverse_name = ""
+        if "html" in content_type.lower() and reverse_name.split(".")[0] == "quietcool":
+            return address
+    except (OSError, TimeoutError, ValueError):
+        pass
+    return None
+
+
+def discover_lan_device():
+    """Discover the ESPHome node automatically, confined to Ethernet IPv4 subnet.
+
+    Limit scanning to /24 or smaller, use the known quietcool.local hostname first,
+    and never claim Home Assistant's ESPHome integration is registered.
+    """
+    eth = ethernet_guard()
+    addresses = (eth.get("ipv4") or {}).get("address", [])
+    if not addresses:
+        raise ValueError("Ethernet has no IPv4 network")
+    subnet = ipaddress.IPv4Interface(addresses[0]).network
+    if subnet.num_addresses > 256:
+        raise ValueError("Automatic scan requires an Ethernet /24 subnet or smaller")
+    own_ip = ipaddress.IPv4Interface(addresses[0]).ip
+    candidates = []
+    try:
+        results = socket.getaddrinfo("quietcool.local", 80, family=socket.AF_INET, type=socket.SOCK_STREAM)
+        candidates = [ipaddress.IPv4Address(item[4][0]) for item in results]
+    except (OSError, ValueError):
+        pass
+    for address in candidates:
+        if address in subnet and address != own_ip:
+            found = _probe_quietcool(address, trusted_hostname=True)
+            if found:
+                ethernet_guard()
+                return {"verified": True, "ip": found,
+                        "message": "QuietCool ESP32 found automatically on your Ethernet LAN. Its web interface and ESPHome API port responded. Add the ESPHome integration in Home Assistant if needed."}
+    # Probe only addresses on the Yellow's Ethernet subnet. Concurrent short
+    # timeouts keep an empty /24 from holding the UI indefinitely.
+    hosts = [str(ip) for ip in subnet.hosts() if ip != own_ip]
+    matches = []
+    with ThreadPoolExecutor(max_workers=24) as pool:
+        futures = [pool.submit(_probe_quietcool, ip) for ip in hosts]
+        for future in as_completed(futures):
+            match = future.result()
+            if match:
+                matches.append(match)
     ethernet_guard()
-    return {"verified": True, "ip": str(address), "message": "ESPHome API port and device webpage respond on your home LAN. Next add the ESPHome integration in Home Assistant."}
+    if len(matches) == 1:
+        return {"verified": True, "ip": matches[0],
+                "message": "QuietCool ESP32 discovered on your Ethernet LAN. Web and ESPHome API responded. Complete the ESPHome integration in Home Assistant separately."}
+    if len(matches) > 1:
+        return {"verified": False, "message": "More than one QuietCool device responded on the LAN. Automatic identification is ambiguous; no device was selected."}
+    return {"verified": False, "message": "QuietCool is not visible on your Ethernet LAN yet. Check the ESP32 power, home Wi-Fi SSID/password, and router; then retry discovery."}
+
 
 def device_request(path: str, timeout: float = 5.0):
     if path != "/config.json" and not path.startswith("/wifisave?"):
@@ -248,7 +304,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.allowed():
             return
         path = urlsplit(self.path).path
-        if path not in ("/provision", "/wifi-connect", "/wifi-disconnect", "/verify-lan"):
+        if path not in ("/provision", "/wifi-connect", "/wifi-disconnect", "/discover-lan"):
             return self.json(405, {"ok": False, "message": "Endpoint not available"})
         if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
             return self.json(415, {"ok": False, "message": "Expected JSON request"})
@@ -262,18 +318,16 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             if not isinstance(payload, dict):
                 raise ValueError("Invalid JSON body")
-            if path in ("/wifi-connect", "/wifi-disconnect", "/provision", "/verify-lan"):
+            if path in ("/wifi-connect", "/wifi-disconnect", "/provision", "/discover-lan"):
                 if not ethernet_status()["ethernet_ready"]:
                     return self.json(409, {"ok": False, "message": "Ethernet safety lock: plug Ethernet into the Yellow and wait for a valid Ethernet IP before using Wi-Fi setup."})
-            if path == "/verify-lan":
-                ip = payload.get("ip")
-                if not isinstance(ip, str) or len(ip) > 15:
-                    return self.json(400, {"ok": False, "message": "Enter a numeric IPv4 address"})
+            if path == "/discover-lan":
                 try:
-                    result = verify_lan_device(ip)
+                    result = discover_lan_device()
                     return self.json(200, {"ok": True, **result})
                 except (ValueError, OSError, IndexError):
-                    return self.json(422, {"ok": False, "verified": False, "message": "ESP32 not verified. Check its LAN IP, web server and ESPHome API, then retry."})
+                    return self.json(422, {"ok": False, "verified": False,
+                                           "message": "Unable to scan the Ethernet LAN safely. Check your Yellow Ethernet status."})
             if path in ("/wifi-connect", "/wifi-disconnect"):
                 if not NETWORK_BUSY.acquire(blocking=False):
                     return self.json(409, {"ok": False, "message": "A Wi-Fi operation is already running"})
