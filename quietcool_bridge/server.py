@@ -120,7 +120,7 @@ MAX_BODY = 2048
 MAX_UPSTREAM = 65536
 
 
-def _probe_quietcool(address):
+def _probe_quietcool(address, trusted_hostname=False):
     """Identify a QuietCool ESPHome web server, not just an open TCP port."""
     address = str(address)
     try:
@@ -136,7 +136,15 @@ def _probe_quietcool(address):
         finally:
             conn.close()
         text = body.decode("utf-8", "ignore").lower()
-        if "html" in content_type.lower() and "quietcool" in text and "esphome" in text:
+        if "html" in content_type.lower() and (trusted_hostname or "quietcool" in text):
+            return address
+        # Some ESPHome frontends render the device name in JavaScript. The
+        # LAN reverse DNS name may still identify this node as quietcool.
+        try:
+            reverse_name = socket.gethostbyaddr(address)[0].lower().rstrip(".")
+        except OSError:
+            reverse_name = ""
+        if "html" in content_type.lower() and reverse_name.split(".")[0] == "quietcool":
             return address
     except (OSError, TimeoutError, ValueError):
         pass
@@ -165,7 +173,7 @@ def discover_lan_device():
         pass
     for address in candidates:
         if address in subnet and address != own_ip:
-            found = _probe_quietcool(address)
+            found = _probe_quietcool(address, trusted_hostname=True)
             if found:
                 ethernet_guard()
                 return {"verified": True, "ip": found,
