@@ -110,3 +110,31 @@ $('disconnectFallback').addEventListener('click', async () => {
   await wifiPost('wifi-disconnect', {confirm:true});
 });
 refreshYellowWifi();
+
+let ethernetReady = false;
+function applyEthernetLock(ready, message) {
+  ethernetReady = ready;
+  $('ethernetGuard').textContent = ready
+    ? '✓ ' + message
+    : '⚠ ' + message + '. Plug Ethernet into the Yellow, then click Recheck Ethernet.';
+  for (const id of ['scanFallback', 'connectFallback', 'disconnectFallback', 'submitBtn']) {
+    $(id).disabled = !ready;
+  }
+  $('ethernetGuard').style.color = ready ? '#12682e' : '#9a4718';
+}
+async function refreshEthernet() {
+  // Fail closed while checking; no action is permitted on stale Ethernet state.
+  applyEthernetLock(false, 'Checking Ethernet connection');
+  try {
+    const response = await fetch('ethernet-status', {cache: 'no-store'});
+    const data = await response.json();
+    applyEthernetLock(!!data.ethernet_ready, data.ethernet_message +
+      (data.ethernet_ip ? ' (' + data.ethernet_ip + ')' : ''));
+  } catch (_) {
+    applyEthernetLock(false, 'Ethernet status unavailable');
+  }
+}
+$('ethernetRefresh').addEventListener('click', refreshEthernet);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshEthernet(); });
+setInterval(refreshEthernet, 10000);
+refreshEthernet();
