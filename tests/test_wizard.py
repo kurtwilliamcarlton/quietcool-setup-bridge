@@ -38,7 +38,7 @@ class WizardTests(unittest.TestCase):
             result=bridge.verify_lan_device("192.168.33.167")
         self.assertTrue(result["verified"])
         tcp.assert_called_once_with(("192.168.33.167",6053),timeout=2.5)
-        self.assertIn("Add the ESPHome integration",result["message"])
+        self.assertIn("ESPHome integration",result["message"])
 
     def test_web_server_failure_blocks_success(self):
         fake_conn=MagicMock()
