@@ -42,14 +42,21 @@
 </section>
 <section class="card wizard-page" data-step="2" hidden>
   <span class="kicker">STEP 3 · CONNECT DEVICE</span>
-  <h2>Find the ESP32's setup Wi-Fi</h2>
+  <h2>Find or reconfigure your QuietCool ESP32</h2>
   <p>Put the ESP32 into fallback/setup mode so it broadcasts <strong>QuietCool Fallback</strong>. Your Yellow will only use its secondary Wi-Fi adapter (<code>wlan0</code>); Ethernet stays primary.</p>
+  <div class="finish-box">
+    <h3>Already set up in Home Assistant?</h3>
+    <p>The bridge checks for an existing QuietCool ESPHome integration. An existing integration can stay installed while you update the controller's Wi-Fi settings.</p>
+    <div id="existingDeviceStatus" class="notice neutral" aria-live="polite">Checking existing Home Assistant devices…</div>
+    <button type="button" id="refreshExisting">Check Home Assistant again</button>
+  </div>
+  <p class="help"><strong>Want to reconfigure?</strong> If the controller broadcasts QuietCool Fallback, scan below and select <strong>Connect &amp; Reconfigure</strong>. This changes Wi-Fi settings, not ESPHome firmware.</p>
   <div id="yellowWifiStatus" class="notice neutral" role="status" aria-live="polite">Checking Yellow Wi-Fi…</div>
   <button id="scanFallback" type="button">Scan for QuietCool Fallback</button>
   <p id="scanResult" class="help" aria-live="polite">Scanning does not connect automatically.</p>
   <label for="fallbackPassword">Temporary setup Wi-Fi password</label>
   <input id="fallbackPassword" type="password" autocomplete="off" placeholder="QuietCool Fallback password">
-  <div class="actions"><button id="connectFallback" type="button" class="primary inline-primary">Connect Yellow to ESP32</button><button id="wifiRefresh" type="button">Refresh status</button></div>
+  <div class="actions"><button id="connectFallback" type="button" class="primary inline-primary">Connect &amp; Reconfigure</button><button id="wifiRefresh" type="button">Refresh status</button></div>
   <div id="wifiActionResult" class="result" role="status" aria-live="polite"></div>
   <p class="help">If already connected to QuietCool Fallback, you can continue without reconnecting.</p>
 </section>
@@ -115,7 +122,7 @@
   <span id="navHint" class="help" aria-live="polite"></span>
   <button type="button" id="nextBtn" class="primary inline-primary">Get started</button>
 </div>
-<footer><span>Home Assistant Ingress · Safety-first guided setup</span><span>QuietCool Setup Bridge v1.5 · Automatic discovery · No firmware upload</span></footer>
+<footer><span>Home Assistant Ingress · Safety-first guided setup</span><span>QuietCool Setup Bridge v1.6 · Automatic discovery · No firmware upload</span></footer>
 </main>
 </body>
 </html>
