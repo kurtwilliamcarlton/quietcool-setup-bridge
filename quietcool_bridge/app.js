@@ -39,6 +39,7 @@ $('networks').addEventListener('change', e => { if (e.target.value) $('ssid').va
 $('showPassword').addEventListener('change', e => { $('psk').type = e.target.checked ? 'text' : 'password'; });
 $('setupForm').addEventListener('submit', async e => {
   e.preventDefault();
+  if (!ethernetReady) return wifiMessage('Ethernet must be connected before configuring ESP32 Wi-Fi.', false);
   const ssid = $('ssid').value;
   const psk = $('psk').value;
   const msg = $('saveResult');
@@ -57,7 +58,7 @@ $('setupForm').addEventListener('submit', async e => {
     msg.className = 'result error';
     msg.textContent = 'Could not confirm the change. Check whether the ESP32 has already joined your home Wi-Fi.';
   } finally {
-    $('submitBtn').disabled = false;
+    $('submitBtn').disabled = !ethernetReady;
   }
 });
 refreshDevice();
@@ -110,3 +111,31 @@ $('disconnectFallback').addEventListener('click', async () => {
   await wifiPost('wifi-disconnect', {confirm:true});
 });
 refreshYellowWifi();
+
+let ethernetReady = false;
+function applyEthernetLock(ready, message) {
+  ethernetReady = ready;
+  $('ethernetGuard').textContent = ready
+    ? '✓ ' + message
+    : '⚠ ' + message + '. Plug Ethernet into the Yellow, then click Recheck Ethernet.';
+  for (const id of ['scanFallback', 'connectFallback', 'disconnectFallback', 'submitBtn']) {
+    $(id).disabled = !ready;
+  }
+  $('ethernetGuard').style.color = ready ? '#12682e' : '#9a4718';
+}
+async function refreshEthernet() {
+  // Fail closed while checking; no action is permitted on stale Ethernet state.
+  applyEthernetLock(false, 'Checking Ethernet connection');
+  try {
+    const response = await fetch('ethernet-status', {cache: 'no-store'});
+    const data = await response.json();
+    applyEthernetLock(!!data.ethernet_ready, data.ethernet_message +
+      (data.ethernet_ip ? ' (' + data.ethernet_ip + ')' : ''));
+  } catch (_) {
+    applyEthernetLock(false, 'Ethernet status unavailable');
+  }
+}
+$('ethernetRefresh').addEventListener('click', refreshEthernet);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshEthernet(); });
+setInterval(refreshEthernet, 10000);
+refreshEthernet();

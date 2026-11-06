@@ -43,9 +43,29 @@ def network_info():
     return supervisor_request("GET", "/network/info")
 
 
-def checked_interfaces():
+def ethernet_guard():
+    """Require active, primary Ethernet with a configured IPv4 address."""
     interfaces = network_info().get("interfaces", [])
-    ethernet = next((x for x in interfaces if x.get("interface") == "end0" and x.get("type") == "ethernet" and x.get("connected") and x.get("primary")), None)
+    ethernet = next((x for x in interfaces if x.get("interface") == "end0" and x.get("type") == "ethernet"), None)
+    if not ethernet or not ethernet.get("connected") or not ethernet.get("enabled") or not ethernet.get("primary"):
+        raise ValueError("Ethernet safety interlock: connect end0 Ethernet before configuring Wi-Fi")
+    ipv4 = ethernet.get("ipv4") or {}
+    if not ipv4.get("address") or not ipv4.get("ready"):
+        raise ValueError("Ethernet safety interlock: end0 requires a ready IPv4 address")
+    return ethernet
+
+
+def ethernet_status():
+    try:
+        eth = ethernet_guard()
+        return {"ethernet_ready": True, "ethernet_ip": (eth.get("ipv4") or {}).get("address", [""])[0], "ethernet_message": "Ethernet connected — Wi-Fi configuration permitted"}
+    except (ValueError, RuntimeError, URLError, HTTPError, OSError):
+        return {"ethernet_ready": False, "ethernet_ip": None, "ethernet_message": "Ethernet disconnected or unverified — Wi-Fi configuration locked"}
+
+
+def checked_interfaces():
+    ethernet = ethernet_guard()
+    interfaces = network_info().get("interfaces", [])
     wifi = next((x for x in interfaces if x.get("interface") == WLAN and x.get("type") == "wireless" and not x.get("primary")), None)
     if not ethernet or not wifi:
         raise ValueError("Require active primary end0 Ethernet and secondary wlan0 Wi-Fi")
@@ -177,6 +197,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, (ROOT / name).read_bytes(), kind)
         if path == "/healthz":
             return self.json(200, {"ok": True})
+        if path == "/ethernet-status":
+            return self.json(200, ethernet_status())
         if path == "/wifi-status":
             try:
                 return self.json(200, {"ok": True, **wifi_status()})
@@ -188,6 +210,8 @@ class Handler(BaseHTTPRequestHandler):
             except (RuntimeError, ValueError, OSError, URLError, HTTPError):
                 return self.json(503, {"ok": False, "message": "Unable to scan wlan0"})
         if path == "/status":
+            if not ethernet_status()["ethernet_ready"]:
+                return self.json(503, {"connected": False, "message": "Ethernet must be connected before device configuration"})
             try:
                 info = get_config()
                 return self.json(200, {"connected": True, "device": info})
@@ -213,6 +237,9 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             if not isinstance(payload, dict):
                 raise ValueError("Invalid JSON body")
+            if path in ("/wifi-connect", "/wifi-disconnect", "/provision"):
+                if not ethernet_status()["ethernet_ready"]:
+                    return self.json(409, {"ok": False, "message": "Ethernet safety lock: plug Ethernet into the Yellow and wait for a valid Ethernet IP before using Wi-Fi setup."})
             if path in ("/wifi-connect", "/wifi-disconnect"):
                 if not NETWORK_BUSY.acquire(blocking=False):
                     return self.json(409, {"ok": False, "message": "A Wi-Fi operation is already running"})
@@ -235,9 +262,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json(400, {"ok": False, "message": "SSID must be between 1 and 32 bytes"})
             if not isinstance(psk, str) or (psk and not (8 <= len(psk.encode("utf-8")) <= 63)):
                 return self.json(400, {"ok": False, "message": "Password must be 8-63 bytes, or blank for an open network"})
+            ethernet_guard()
             # Recheck identity at the instant of provisioning so we do not send
             # credentials to an unrelated device that also uses 192.168.4.1.
             get_config()
+            ethernet_guard()
             query = urlencode({"ssid": ssid, "psk": psk})
             status, _, _ = device_request("/wifisave?" + query, timeout=7)
             if status != 200:

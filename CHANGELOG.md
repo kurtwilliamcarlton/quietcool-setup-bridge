@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0 — Ethernet safety interlock
+
+- Require primary Ethernet end0 connected and enabled with a ready IPv4 address before scanning for fallback Wi-Fi, connecting, disabling Wi-Fi, or provisioning ESP32 credentials.
+- Show Ethernet readiness and lock the setup buttons if disconnected.
+- Recheck on page focus and every 10 seconds; server rejects bypassed requests with HTTP 409.
+- Fail closed if Supervisor's Ethernet status cannot be confirmed.
+- Manual-only Wi-Fi behavior from v1.1 is unchanged.
+
 ## 1.1.0 — experimental
 
 - Add manual **Find QuietCool Fallback** scan from Home Assistant Yellow wlan0.

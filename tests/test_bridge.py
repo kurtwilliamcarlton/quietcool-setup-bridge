@@ -49,7 +49,7 @@ class ServerTests(unittest.TestCase):
                 self.assertEqual(response.status, 200)
 
     def test_status(self):
-        with patch.object(bridge, "device_request", self.fake_request):
+        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": True}), patch.object(bridge, "device_request", self.fake_request):
             with urlopen(self.url + "/status", timeout=5) as response:
                 data = json.load(response)
         self.assertTrue(data["connected"])
@@ -58,7 +58,7 @@ class ServerTests(unittest.TestCase):
 
     def test_unexpected_device_is_rejected(self):
         fake = dict(DEVICE_JSON, name="other-device")
-        with patch.object(bridge, "device_request", return_value=(200, {}, json.dumps(fake).encode())):
+        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": True}), patch.object(bridge, "device_request", return_value=(200, {}, json.dumps(fake).encode())):
             with urlopen(self.url + "/status", timeout=5) as response:
                 self.assertFalse(json.load(response)["connected"])
 
@@ -76,7 +76,7 @@ class ServerTests(unittest.TestCase):
         def record(path, timeout=5):
             calls.append(path)
             return self.fake_request(path, timeout)
-        with patch.object(bridge, "device_request", record):
+        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": True}), patch.object(bridge, "ethernet_guard", return_value={}), patch.object(bridge, "device_request", record):
             status, data = self.post({"ssid": "ExampleHome", "psk": "samplepass123"})
         self.assertEqual(status, 200)
         self.assertTrue(data["ok"])
@@ -84,8 +84,24 @@ class ServerTests(unittest.TestCase):
         self.assertIn("psk=samplepass123", calls[-1])
         self.assertNotIn("samplepass123", json.dumps(data))
 
+    def test_unplugged_ethernet_blocks_provision(self):
+        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": False}), patch.object(bridge, "device_request") as upstream:
+            status, data = self.post({"ssid": "ExampleHome", "psk": "samplepass123"})
+            self.assertEqual(status, 409)
+            self.assertFalse(data["ok"])
+            upstream.assert_not_called()
+
+    def test_unplugged_ethernet_blocks_connect(self):
+        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": False}), patch.object(bridge, "supervisor_request") as upstream:
+            req = Request(self.url + "/wifi-connect", json.dumps({"password":"samplepass123"}).encode(), {"Content-Type":"application/json"}, method="POST")
+            with self.assertRaises(HTTPError) as e:
+                urlopen(req, timeout=5)
+            self.assertEqual(e.exception.code, 409)
+            upstream.assert_not_called()
+
     def test_reject_short_psk(self):
-        status, data = self.post({"ssid": "ExampleHome", "psk": "short"})
+        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": True}):
+            status, data = self.post({"ssid": "ExampleHome", "psk": "short"})
         self.assertEqual(status, 400)
         self.assertFalse(data["ok"])
 

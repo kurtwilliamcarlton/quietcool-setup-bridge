@@ -16,6 +16,13 @@
       <p>Configure an ESP32 on its fallback Wi-Fi without changing your phone or laptop's network.</p>
     </header>
 
+    <section class="card" aria-live="polite">
+      <h2>Ethernet safety interlock</h2>
+      <p id="ethernetGuard" class="help">Checking Ethernet cable and IP address…</p>
+      <p class="help">For safety, connecting to the ESP32, scanning fallback Wi-Fi, and sending Wi-Fi credentials are blocked unless Ethernet end0 is connected and has a valid IP address.</p>
+      <button type="button" id="ethernetRefresh">Recheck Ethernet</button>
+    </section>
+
     <section class="card">
       <h2>Yellow Wi-Fi connection</h2>
       <p class="help">Ethernet remains your Home Assistant connection. Wi-Fi is only used temporarily to provision QuietCool. It will not connect automatically: use Connect below.</p>
@@ -78,7 +85,7 @@
 
     <footer>
       <span>Home Assistant Ingress · No extra port exposed</span>
-      <span>Bridge v1.1 development · Wi-Fi setup only · Firmware upload disabled</span>
+      <span>Bridge v1.2 · Ethernet safety lock · Wi-Fi setup only · Firmware upload disabled</span>
     </footer>
   </main>
 </body>
