@@ -61,3 +61,52 @@ $('setupForm').addEventListener('submit', async e => {
   }
 });
 refreshDevice();
+
+async function refreshYellowWifi() {
+  try {
+    const response = await fetch('wifi-status', {cache:'no-store'});
+    const data = await response.json();
+    $('yellowWifiStatus').textContent = data.ok
+      ? ('Yellow wlan0: ' + (data.wifi_enabled ? (data.wifi_connected ? ('Connected to ' + (data.ssid || 'unknown network')) : 'Enabled, not connected') : 'Disabled — automatic reconnection prevented'))
+      : (data.message || 'Network information unavailable');
+  } catch (_) {
+    $('yellowWifiStatus').textContent = 'Unable to read Yellow network status';
+  }
+}
+function wifiMessage(message, good) {
+  const el = $('wifiActionResult');
+  el.className = good ? 'result ok' : 'result error';
+  el.textContent = message;
+}
+async function wifiPost(path, payload) {
+  try {
+    const response = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload), cache:'no-store'});
+    const data = await response.json();
+    wifiMessage(data.message || (data.ok ? 'Operation requested' : 'Operation failed'), !!data.ok);
+  } catch (_) {
+    wifiMessage('Wi-Fi operation failed; check Home Assistant Network settings.', false);
+  }
+  await refreshYellowWifi();
+}
+$('scanFallback').addEventListener('click', async () => {
+  $('scanResult').textContent = 'Scanning…';
+  try {
+    const response = await fetch('wifi-scan', {cache:'no-store'});
+    const data = await response.json();
+    $('scanResult').textContent = data.ok ? (data.found ? 'QuietCool Fallback found' : 'Not found nearby') : (data.message || 'Scan failed');
+  } catch (_) {
+    $('scanResult').textContent = 'Scan failed';
+  }
+});
+$('connectFallback').addEventListener('click', async () => {
+  const password = $('fallbackPassword').value;
+  if (!password) return wifiMessage('Enter the temporary fallback Wi-Fi password.', false);
+  if (!window.confirm('Connect Yellow wlan0 to QuietCool Fallback? Ethernet will remain primary.')) return;
+  await wifiPost('wifi-connect', {password});
+  $('fallbackPassword').value = '';
+});
+$('disconnectFallback').addEventListener('click', async () => {
+  if (!window.confirm('Have you verified QuietCool is reachable on the normal home network? Disable Yellow wlan0 and prevent future automatic reconnection?')) return;
+  await wifiPost('wifi-disconnect', {confirm:true});
+});
+refreshYellowWifi();
