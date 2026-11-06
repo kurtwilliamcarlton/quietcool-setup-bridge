@@ -77,12 +77,29 @@ class ServerTests(unittest.TestCase):
             calls.append(path)
             return self.fake_request(path, timeout)
         with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": True}), patch.object(bridge, "ethernet_guard", return_value={}), patch.object(bridge, "device_request", record):
-            status, data = self.post({"ssid": "ExampleHome", "psk": "samplepass123"})
+            status, data = self.post({"ssid": "ExampleHome", "psk": "samplepass123", "expected_mac": "AA:BB:CC:DD:EE:01"})
         self.assertEqual(status, 200)
         self.assertTrue(data["ok"])
         self.assertIn("/wifisave?", calls[-1])
         self.assertIn("psk=samplepass123", calls[-1])
         self.assertNotIn("samplepass123", json.dumps(data))
+
+    def test_mismatched_mac_blocks_password_submission(self):
+        sent = []
+        def record(path, timeout=5):
+            sent.append(path)
+            return self.fake_request(path, timeout)
+        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": True}), patch.object(bridge, "ethernet_guard", return_value={}), patch.object(bridge, "device_request", record):
+            status, data = self.post({"ssid": "ExampleHome", "psk": "samplepass123", "expected_mac": "AA:BB:CC:DD:EE:02"})
+        self.assertEqual(status, 409)
+        self.assertFalse(data["ok"])
+        self.assertFalse(any(p.startswith("/wifisave?") for p in sent))
+
+    def test_missing_mac_requires_reidentify(self):
+        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": True}), patch.object(bridge, "ethernet_guard", return_value={}), patch.object(bridge, "device_request") as upstream:
+            status, data = self.post({"ssid": "ExampleHome", "psk": "samplepass123"})
+            self.assertEqual(status, 409)
+            upstream.assert_not_called()
 
     def test_unplugged_ethernet_blocks_provision(self):
         with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": False}), patch.object(bridge, "device_request") as upstream:
