@@ -43,6 +43,44 @@ def supervisor_request(method, path, payload=None, timeout=10):
     return result.get("data", {})
 
 
+def core_rest_get(path, timeout=6):
+    """Read a Home Assistant Core REST endpoint using the Supervisor proxy."""
+    token = os.getenv("SUPERVISOR_TOKEN")
+    if not token:
+        raise RuntimeError("Supervisor token not available")
+    request = Request(SUPERVISOR + "/core/api" + path,
+                      headers={"Authorization": "Bearer " + token,
+                               "Accept": "application/json"},
+                      method="GET")
+    with urlopen(request, timeout=timeout) as response:
+        raw = response.read(262145)
+    if len(raw) > 262144:
+        raise ValueError("Home Assistant registry reply too large")
+    return json.loads(raw)
+
+
+def existing_quietcool():
+    """Read existing ESPHome config entries, never add or modify them."""
+    try:
+        entries = core_rest_get("/config/config_entries/entry?domain=esphome")
+        if not isinstance(entries, list):
+            raise ValueError("Unexpected config-entry response")
+        matches = []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            title = entry.get("title")
+            if isinstance(title, str) and "quietcool" in title.casefold():
+                matches.append({"title": title[:120],
+                                "state": str(entry.get("state") or "unknown")[:40]})
+        return {"available": True, "configured": bool(matches), "entries": matches[:8],
+                "message": ("Matching ESPHome integration already exists in Home Assistant."
+                            if matches else "No ESPHome integration named QuietCool was found. It could have been renamed.")}
+    except (OSError, URLError, HTTPError, RuntimeError, ValueError, TypeError, json.JSONDecodeError):
+        return {"available": False, "configured": False, "entries": [],
+                "message": "Home Assistant device status is unavailable. This does not mean QuietCool is missing."}
+
+
 def network_info():
     return supervisor_request("GET", "/network/info")
 
@@ -278,6 +316,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, (ROOT / name).read_bytes(), kind)
         if path == "/healthz":
             return self.json(200, {"ok": True})
+        if path == "/existing-device":
+            return self.json(200, {"ok": True, **existing_quietcool()})
         if path == "/ethernet-status":
             return self.json(200, ethernet_status())
         if path == "/wifi-status":
