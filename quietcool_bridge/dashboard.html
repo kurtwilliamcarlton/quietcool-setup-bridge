@@ -16,6 +16,22 @@
       <p>Configure an ESP32 on its fallback Wi-Fi without changing your phone or laptop's network.</p>
     </header>
 
+    <section class="card">
+      <h2>Yellow Wi-Fi connection</h2>
+      <p class="help">Ethernet remains your Home Assistant connection. Wi-Fi is only used temporarily to provision QuietCool. It will not connect automatically: use Connect below.</p>
+      <p id="yellowWifiStatus" class="help" aria-live="polite">Checking wlan0…</p>
+      <div class="actions">
+        <button type="button" id="scanFallback">Find QuietCool Fallback</button>
+        <span id="scanResult" class="small"></span>
+      </div>
+      <label for="fallbackPassword">QuietCool Fallback Wi-Fi password</label>
+      <input id="fallbackPassword" type="password" autocomplete="off" placeholder="Password for the temporary setup Wi-Fi">
+      <div class="actions"><button type="button" id="connectFallback">Connect Yellow to QuietCool</button></div>
+      <p class="help"><strong>After setup:</strong> Confirm the ESP32 works on your regular network. Then click Disconnect &amp; Disable. This disables wlan0 persistently, preventing automatic reconnection even if the ESP32 is reset later.</p>
+      <button type="button" id="disconnectFallback">Disconnect &amp; Disable Yellow Wi-Fi</button>
+      <p id="wifiActionResult" class="result" aria-live="polite"></p>
+    </section>
+
     <section class="status card" aria-live="polite">
       <div class="statusheading">
         <h2>Device connection</h2>
@@ -62,7 +78,7 @@
 
     <footer>
       <span>Home Assistant Ingress · No extra port exposed</span>
-      <span>Bridge v1.0 · Wi-Fi setup only · Firmware upload disabled</span>
+      <span>Bridge v1.1 development · Wi-Fi setup only · Firmware upload disabled</span>
     </footer>
   </main>
 </body>
