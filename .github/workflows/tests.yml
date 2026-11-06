@@ -14,3 +14,6 @@ jobs:
         run: python3 -m unittest discover -s tests -v
       - name: Check Python syntax
         run: python3 -m py_compile quietcool_bridge/server.py
+
+      - name: Check wizard JavaScript syntax
+        run: node --check quietcool_bridge/app.js
