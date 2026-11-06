@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0 — guided setup wizard
+
+- Replace the single-page tool with six guided screens: introduction, Ethernet safety, fallback connection, ESP32 identity, Wi-Fi provisioning, and LAN verification/cleanup.
+- Gate Next until each prerequisite completes.
+- Final step verifies a device at a numeric IPv4 address on the Ethernet subnet via web port 80 and ESPHome native API port 6053.
+- Explain that network checks are not equivalent to registering the ESPHome integration in Home Assistant.
+- Maintain manual-only fallback connection and persistent wlan0 disable to avoid automatic reconnection.
+- Keep credentials in transient form data, not in browser URLs or storage.
+
 ## 1.2.0 — Ethernet safety interlock
 
 - Require primary Ethernet end0 connected and enabled with a ready IPv4 address before scanning for fallback Wi-Fi, connecting, disabling Wi-Fi, or provisioning ESP32 credentials.

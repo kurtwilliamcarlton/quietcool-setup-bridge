@@ -94,3 +94,7 @@ The Home Assistant Yellow remains on **primary Ethernet (end0)**. The bridge can
 ## v1.2 Ethernet safety interlock
 
 The app checks the Supervisor network status for **end0**, requiring it to be the enabled, connected, primary Ethernet interface with a ready IPv4 address. The dashboard shows **Ethernet connected — Wi-Fi configuration permitted** when ready, and **Ethernet disconnected or unverified — Wi-Fi configuration locked** otherwise. Connecting to fallback Wi-Fi, scanning for it, disconnecting wlan0, and sending new ESP32 Wi-Fi settings are blocked while the lock is active. The server rechecks for each operation, independently of the dashboard; a disconnected cable or unavailable Supervisor API means **no Wi-Fi setup**. This does not change other Home Assistant services, only bridge functions.
+
+## Guided setup wizard (v1.3)
+
+The interface walks administrators through six explicit steps: introduction; primary Ethernet safety check; manual fallback Wi-Fi scan/connection; ESP32 identification at 192.168.4.1; home Wi-Fi provisioning; LAN verification, temporary Wi-Fi cleanup and next steps. A LAN verification success means that a device on the same Ethernet IPv4 subnet answers on HTTP port 80 and ESPHome API port 6053. It does **not** prove that Home Assistant has discovered or registered the ESPHome integration. Users must visit Settings → Devices & services → ESPHome to complete setup. The app continues to block configuration when the Ethernet safety check fails.

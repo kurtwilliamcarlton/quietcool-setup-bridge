@@ -6,6 +6,9 @@ Home Assistant Supervisor Ingress. No passwords are stored or logged.
 from __future__ import annotations
 
 import gzip
+import ipaddress
+import socket
+import http.client
 import json
 import os
 import re
@@ -116,6 +119,28 @@ MAX_BODY = 2048
 MAX_UPSTREAM = 65536
 
 
+def verify_lan_device(ip_text):
+    """Check home-LAN device reachability, not ESPHome integration registration."""
+    eth = ethernet_guard()
+    address = ipaddress.IPv4Address(ip_text)
+    lan = ipaddress.IPv4Interface((eth.get("ipv4") or {}).get("address", [])[0])
+    if address not in lan.network or address in (lan.ip, lan.network.network_address, lan.network.broadcast_address):
+        raise ValueError("ESP32 must have an IP on the Ethernet subnet")
+    if str(address) == "192.168.4.1" or address.is_loopback or address.is_multicast:
+        raise ValueError("Invalid ESP32 LAN IP")
+    with socket.create_connection((str(address), 6053), timeout=2.5):
+        pass
+    connection = http.client.HTTPConnection(str(address), 80, timeout=3.5)
+    try:
+        connection.request("GET", "/", headers={"Accept-Encoding": "identity"})
+        response = connection.getresponse()
+        if response.status != 200 or not response.read(65536):
+            raise ValueError("Device web server unavailable")
+    finally:
+        connection.close()
+    ethernet_guard()
+    return {"verified": True, "ip": str(address), "message": "ESPHome API port and device webpage respond on your home LAN. Next add the ESPHome integration in Home Assistant."}
+
 def device_request(path: str, timeout: float = 5.0):
     if path != "/config.json" and not path.startswith("/wifisave?"):
         raise ValueError("Upstream path not permitted")
@@ -223,7 +248,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.allowed():
             return
         path = urlsplit(self.path).path
-        if path not in ("/provision", "/wifi-connect", "/wifi-disconnect"):
+        if path not in ("/provision", "/wifi-connect", "/wifi-disconnect", "/verify-lan"):
             return self.json(405, {"ok": False, "message": "Endpoint not available"})
         if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
             return self.json(415, {"ok": False, "message": "Expected JSON request"})
@@ -237,9 +262,18 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             if not isinstance(payload, dict):
                 raise ValueError("Invalid JSON body")
-            if path in ("/wifi-connect", "/wifi-disconnect", "/provision"):
+            if path in ("/wifi-connect", "/wifi-disconnect", "/provision", "/verify-lan"):
                 if not ethernet_status()["ethernet_ready"]:
                     return self.json(409, {"ok": False, "message": "Ethernet safety lock: plug Ethernet into the Yellow and wait for a valid Ethernet IP before using Wi-Fi setup."})
+            if path == "/verify-lan":
+                ip = payload.get("ip")
+                if not isinstance(ip, str) or len(ip) > 15:
+                    return self.json(400, {"ok": False, "message": "Enter a numeric IPv4 address"})
+                try:
+                    result = verify_lan_device(ip)
+                    return self.json(200, {"ok": True, **result})
+                except (ValueError, OSError, IndexError):
+                    return self.json(422, {"ok": False, "verified": False, "message": "ESP32 not verified. Check its LAN IP, web server and ESPHome API, then retry."})
             if path in ("/wifi-connect", "/wifi-disconnect"):
                 if not NETWORK_BUSY.acquire(blocking=False):
                     return self.json(409, {"ok": False, "message": "A Wi-Fi operation is already running"})
