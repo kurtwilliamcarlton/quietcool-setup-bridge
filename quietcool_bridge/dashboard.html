@@ -9,84 +9,107 @@
   <script src="app.js" defer></script>
 </head>
 <body>
-  <main class="shell">
-    <header>
-      <div class="eyebrow">HOME ASSISTANT YELLOW · DEVICE PROVISIONING</div>
-      <h1>QuietCool Setup Bridge</h1>
-      <p>Configure an ESP32 on its fallback Wi-Fi without changing your phone or laptop's network.</p>
-    </header>
-
-    <section class="card" aria-live="polite">
-      <h2>Ethernet safety interlock</h2>
-      <p id="ethernetGuard" class="help">Checking Ethernet cable and IP address…</p>
-      <p class="help">For safety, connecting to the ESP32, scanning fallback Wi-Fi, and sending Wi-Fi credentials are blocked unless Ethernet end0 is connected and has a valid IP address.</p>
-      <button type="button" id="ethernetRefresh">Recheck Ethernet</button>
-    </section>
-
-    <section class="card">
-      <h2>Yellow Wi-Fi connection</h2>
-      <p class="help">Ethernet remains your Home Assistant connection. Wi-Fi is only used temporarily to provision QuietCool. It will not connect automatically: use Connect below.</p>
-      <p id="yellowWifiStatus" class="help" aria-live="polite">Checking wlan0…</p>
-      <div class="actions">
-        <button type="button" id="scanFallback">Find QuietCool Fallback</button>
-        <span id="scanResult" class="small"></span>
-      </div>
-      <label for="fallbackPassword">QuietCool Fallback Wi-Fi password</label>
-      <input id="fallbackPassword" type="password" autocomplete="off" placeholder="Password for the temporary setup Wi-Fi">
-      <div class="actions"><button type="button" id="connectFallback">Connect Yellow to QuietCool</button></div>
-      <p class="help"><strong>After setup:</strong> Confirm the ESP32 works on your regular network. Then click Disconnect &amp; Disable. This disables wlan0 persistently, preventing automatic reconnection even if the ESP32 is reset later.</p>
-      <button type="button" id="disconnectFallback">Disconnect &amp; Disable Yellow Wi-Fi</button>
-      <p id="wifiActionResult" class="result" aria-live="polite"></p>
-    </section>
-
-    <section class="status card" aria-live="polite">
-      <div class="statusheading">
-        <h2>Device connection</h2>
-        <span id="statusBadge" class="pill waiting">Checking…</span>
-      </div>
-      <div class="grid2">
-        <div><span class="small">Fallback Wi-Fi</span><strong>QuietCool Fallback</strong></div>
-        <div><span class="small">Device address</span><strong>192.168.4.1</strong></div>
-        <div><span class="small">Device name</span><strong id="deviceName">—</strong></div>
-        <div><span class="small">Device MAC</span><strong id="deviceMac">—</strong></div>
-      </div>
-      <p class="help" id="statusText">Checking the captive portal through the Yellow's Wi-Fi connection…</p>
-      <div class="actions">
-        <button type="button" id="checkBtn">Check connection</button>
-        <span class="small">Native Wi-Fi provisioning through ESPHome</span>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Configure home Wi-Fi</h2>
-      <p class="help">Select a network seen by the ESP32 or enter a network name manually. Your password is sent through Home Assistant to the ESP32. The bridge does not store it. The ESP32 connection uses unencrypted HTTP.</p>
-      <form id="setupForm" autocomplete="off">
-        <label for="networks">Detected networks</label>
-        <select id="networks"><option value="">Select network (optional)</option></select>
-        <label for="ssid">Home Wi-Fi name (SSID)</label>
-        <input id="ssid" name="ssid" required maxlength="32" placeholder="Your home Wi-Fi network" autocomplete="off">
-        <label for="psk">Wi-Fi password</label>
-        <input id="psk" name="psk" type="password" placeholder="8–63 characters for WPA2" autocomplete="new-password">
-        <label class="checkboxrow"><input type="checkbox" id="showPassword"> Show password</label>
-        <button type="submit" class="primary" id="submitBtn">Save Wi-Fi to ESP32</button>
-      </form>
-      <p id="saveResult" class="result" aria-live="polite"></p>
-    </section>
-
-    <section class="card">
-      <h2>What happens after saving?</h2>
-      <div class="steps">
-        <div><span class="stepNumber">1</span><span>ESP32 saves the new Wi-Fi settings.</span></div>
-        <div><span class="stepNumber">2</span><span>It attempts to join your home network; <strong>QuietCool Fallback may disappear</strong>.</span></div>
-        <div><span class="stepNumber">3</span><span>Check your router / Home Assistant ESPHome integration or try <code>quietcool.local</code> on your home network.</span></div>
-      </div>
-      <p class="help">If setup fails, confirm the Yellow's Wi-Fi interface still shows an address on 192.168.4.x and the ESP32 is broadcasting its fallback AP.</p>
-    </section>
-
-    <footer>
-      <span>Home Assistant Ingress · No extra port exposed</span>
-      <span>Bridge v1.2 · Ethernet safety lock · Wi-Fi setup only · Firmware upload disabled</span>
-    </footer>
-  </main>
+<main class="shell">
+<header>
+  <div class="eyebrow">HOME ASSISTANT YELLOW · GUIDED DEVICE SETUP</div>
+  <h1>QuietCool Setup Bridge</h1>
+  <p>A guided way to set up your QuietCool ESP32 without switching your phone off your home network.</p>
+</header>
+<div class="wizard-progress" aria-label="Setup progress">
+  <span id="progressText">Step 1 of 6</span>
+  <div class="track"><div id="progressFill" class="fill"></div></div>
+</div>
+<div id="globalError" class="result error" role="alert" aria-live="assertive"></div>
+<section class="card wizard-page" data-step="0">
+  <span class="kicker">STEP 1 · WELCOME</span>
+  <h2>Let's set up your QuietCool controller</h2>
+  <p>This assistant connects your Home Assistant Yellow to the ESP32's temporary Wi-Fi, sends your home Wi-Fi information, checks the new connection, and helps clean up the temporary connection.</p>
+  <div class="guide">
+    <div><span class="stepNumber">1</span><span>Confirm Ethernet keeps Home Assistant safely online.</span></div>
+    <div><span class="stepNumber">2</span><span>Find and connect to <strong>QuietCool Fallback</strong>.</span></div>
+    <div><span class="stepNumber">3</span><span>Identify your ESP32 and configure its home Wi-Fi.</span></div>
+    <div><span class="stepNumber">4</span><span>Verify the ESP32 on your LAN and disable temporary Wi-Fi.</span></div>
+  </div>
+  <p class="help">Nothing connects automatically. You will approve each change. The bridge never uploads firmware or operates the fan.</p>
+</section>
+<section class="card wizard-page" data-step="1" hidden>
+  <span class="kicker">STEP 2 · SAFETY CHECK</span>
+  <h2>Keep Home Assistant connected over Ethernet</h2>
+  <p>Before using the Wi-Fi adapter, your Yellow must have its Ethernet cable plugged in and an active Ethernet IP address. Wi-Fi setup is locked if this cannot be confirmed.</p>
+  <div id="ethernetGuard" class="notice neutral" role="status" aria-live="polite">Checking Ethernet…</div>
+  <button type="button" id="ethernetRefresh">Check Ethernet again</button>
+  <p class="help">If the check fails, verify the Ethernet cable and open Home Assistant Settings → System → Network.</p>
+</section>
+<section class="card wizard-page" data-step="2" hidden>
+  <span class="kicker">STEP 3 · CONNECT DEVICE</span>
+  <h2>Find the ESP32's setup Wi-Fi</h2>
+  <p>Put the ESP32 into fallback/setup mode so it broadcasts <strong>QuietCool Fallback</strong>. Your Yellow will only use its secondary Wi-Fi adapter (<code>wlan0</code>); Ethernet stays primary.</p>
+  <div id="yellowWifiStatus" class="notice neutral" role="status" aria-live="polite">Checking Yellow Wi-Fi…</div>
+  <button id="scanFallback" type="button">Scan for QuietCool Fallback</button>
+  <p id="scanResult" class="help" aria-live="polite">Scanning does not connect automatically.</p>
+  <label for="fallbackPassword">Temporary setup Wi-Fi password</label>
+  <input id="fallbackPassword" type="password" autocomplete="off" placeholder="QuietCool Fallback password">
+  <div class="actions"><button id="connectFallback" type="button" class="primary inline-primary">Connect Yellow to ESP32</button><button id="wifiRefresh" type="button">Refresh status</button></div>
+  <div id="wifiActionResult" class="result" role="status" aria-live="polite"></div>
+  <p class="help">If already connected to QuietCool Fallback, you can continue without reconnecting.</p>
+</section>
+<section class="card wizard-page" data-step="3" hidden>
+  <span class="kicker">STEP 4 · IDENTIFY DEVICE</span>
+  <h2>Make sure this is your QuietCool ESP32</h2>
+  <p>The bridge contacts the captive portal at <code>192.168.4.1</code> and checks the device name and MAC before allowing credentials to be sent.</p>
+  <div class="statusheading"><strong>Device identification</strong><span id="statusBadge" class="pill waiting">Not checked</span></div>
+  <div class="grid2">
+    <div><span class="small">Name</span><strong id="deviceName">—</strong></div>
+    <div><span class="small">MAC address</span><strong id="deviceMac">—</strong></div>
+  </div>
+  <p id="statusText" class="help" aria-live="polite">Select Check ESP32 to continue.</p>
+  <button id="checkBtn" type="button">Check ESP32 connection</button>
+</section>
+<section class="card wizard-page" data-step="4" hidden>
+  <span class="kicker">STEP 5 · HOME WI-FI</span>
+  <h2>Give the ESP32 your home Wi-Fi</h2>
+  <p>Select a nearby home network or type its name. This is the network the ESP32 will use after setup.</p>
+  <p class="help">The bridge sends the password only when you approve. The device's ESPHome captive-portal connection uses local unencrypted HTTP.</p>
+  <form id="setupForm" autocomplete="off">
+    <label for="networks">Networks seen by the ESP32</label>
+    <select id="networks"><option value="">Choose a network (optional)</option></select>
+    <label for="ssid">Your home Wi-Fi SSID</label>
+    <input id="ssid" required maxlength="32" autocomplete="off" placeholder="Your regular home Wi-Fi">
+    <label for="psk">Home Wi-Fi password</label>
+    <input id="psk" type="password" autocomplete="new-password" placeholder="8–63 characters for WPA2">
+    <label class="checkboxrow"><input type="checkbox" id="showPassword"> Show password</label>
+    <button id="submitBtn" type="submit" class="primary">Save Wi-Fi to ESP32</button>
+  </form>
+  <div id="saveResult" class="result" role="status" aria-live="polite"></div>
+  <p class="help">Once submitted, the ESP32 might stop broadcasting its fallback network. This is normal.</p>
+</section>
+<section class="card wizard-page" data-step="5" hidden>
+  <span class="kicker">STEP 6 · VERIFY & FINISH</span>
+  <h2>Confirm the ESP32 joined your home network</h2>
+  <p>Find the ESP32's new LAN IP in your router, or check <code>quietcool.local</code> from a browser on your home network. Then enter its IP here to test whether the Yellow can reach its web server <strong>over Ethernet</strong>.</p>
+  <label for="lanIp">ESP32 home-network IP address</label>
+  <input id="lanIp" inputmode="decimal" placeholder="192.168.33.xxx" autocomplete="off">
+  <div class="actions"><button type="button" id="verifyLan">Verify ESP32 on Ethernet</button></div>
+  <div id="verifyResult" class="notice neutral" role="status" aria-live="polite">Not verified yet. This is a network check, not confirmation that Home Assistant has added the ESPHome integration.</div>
+  <div class="finish-box">
+    <h3>Disconnect temporary setup Wi-Fi</h3>
+    <p>After LAN verification, disconnect and disable the Yellow's <code>wlan0</code> so it won't rejoin an ESP32 fallback network after a future factory reset.</p>
+    <button type="button" id="disconnectFallback">Disconnect & Disable Yellow Wi-Fi</button>
+    <div id="cleanupResult" class="result" role="status" aria-live="polite"></div>
+  </div>
+  <div id="completed" class="notice success" hidden>
+    <strong>Setup finished!</strong>
+    <p>The ESP32 answered on your home network, and temporary Yellow Wi-Fi is disabled.</p>
+    <p><strong>Next outside this app:</strong> In Home Assistant, go to <strong>Settings → Devices & services → Add integration → ESPHome</strong>. Add the controller by its new LAN IP if Home Assistant did not discover it automatically. Then verify the fan entities work.</p>
+  </div>
+  <p class="help">If verification fails, do not assume setup succeeded. You can return to the previous step, confirm the password, and check the router. If you need to leave now, you can still manually disable wlan0 in Home Assistant's Network settings.</p>
+</section>
+<div class="wizard-nav">
+  <button type="button" id="backBtn">Back</button>
+  <span id="navHint" class="help" aria-live="polite"></span>
+  <button type="button" id="nextBtn" class="primary inline-primary">Get started</button>
+</div>
+<footer><span>Home Assistant Ingress · Safety-first guided setup</span><span>QuietCool Setup Bridge v1.3 · No firmware upload</span></footer>
+</main>
 </body>
 </html>
