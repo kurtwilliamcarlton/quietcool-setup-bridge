@@ -98,3 +98,7 @@ The app checks the Supervisor network status for **end0**, requiring it to be th
 ## Guided setup wizard (v1.3)
 
 The interface walks administrators through six explicit steps: introduction; primary Ethernet safety check; manual fallback Wi-Fi scan/connection; ESP32 identification at 192.168.4.1; home Wi-Fi provisioning; LAN verification, temporary Wi-Fi cleanup and next steps. A LAN verification success means that a device on the same Ethernet IPv4 subnet answers on HTTP port 80 and ESPHome API port 6053. It does **not** prove that Home Assistant has discovered or registered the ESPHome integration. Users must visit Settings → Devices & services → ESPHome to complete setup. The app continues to block configuration when the Ethernet safety check fails.
+
+## Automatic home-network verification (v1.4)
+
+On the final wizard screen, the app automatically searches for the QuietCool controller rather than asking users to enter its IP address. It first tries `quietcool.local`, then checks the active Ethernet subnet (up to 256 addresses). A match must answer on ESPHome API port 6053 and HTTP port 80 and match the QuietCool identity by host or page. Discovery retries while the ESP32 finishes connecting to home Wi-Fi. If it is not found, the wizard displays troubleshooting guidance and a Retry button. Confirmation means the device is reachable on the home LAN; the user may still need to add the ESPHome integration in Home Assistant. Disabling temporary wlan0 remains an explicit user action after verification.
