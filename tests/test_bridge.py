@@ -122,6 +122,32 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertFalse(data["ok"])
 
+    def test_existing_quietcool_esp_home_entry(self):
+        entries = [
+            {"domain": "esphome", "title": "QuietCool Attic", "state": "loaded"},
+            {"domain": "esphome", "title": "Kitchen sensor", "state": "loaded"},
+        ]
+        with patch.object(bridge, "core_rest_get", return_value=entries):
+            status = bridge.existing_quietcool()
+        self.assertTrue(status["available"])
+        self.assertTrue(status["configured"])
+        self.assertEqual(len(status["entries"]), 1)
+        self.assertEqual(status["entries"][0]["title"], "QuietCool Attic")
+
+    def test_existing_device_unavailable_is_not_missing(self):
+        with patch.object(bridge, "core_rest_get", side_effect=RuntimeError("No token")):
+            status = bridge.existing_quietcool()
+        self.assertFalse(status["available"])
+        self.assertFalse(status["configured"])
+        self.assertIn("unavailable", status["message"])
+
+    def test_existing_device_endpoint(self):
+        with patch.object(bridge, "existing_quietcool", return_value={"available": True, "configured": False, "entries": [], "message": "No matching device"}):
+            with urlopen(self.url + "/existing-device", timeout=5) as response:
+                status = json.load(response)
+        self.assertFalse(status["configured"])
+        self.assertTrue(status["ok"])
+
     def test_reject_other_path(self):
         with self.assertRaises(HTTPError) as error:
             urlopen(self.url + "/provision", timeout=5)

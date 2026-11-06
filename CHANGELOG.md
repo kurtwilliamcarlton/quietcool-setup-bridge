@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.0 — recognize existing QuietCool devices
+
+- Step 3 checks Home Assistant for existing ESPHome integration entries named QuietCool and displays their status.
+- The wizard separately searches for the ESP32's fallback Wi-Fi and offers Connect & Reconfigure after explicit user approval.
+- If the Core API is inaccessible or the device has been renamed, the UI states that status is unknown rather than claiming the device is absent.
+- Existing configuration checks are read-only; device changes require the usual intentional connection and provisioning steps.
+- Enable the required Home Assistant Core API permission for this optional integration-status feature.
+
 ## 1.5.0 — reliability and safety
 
 - Record ESP32 MAC during the identification step and recheck its captive-portal MAC immediately before sending home Wi-Fi credentials. Reject changed/missing identities with HTTP 409.
