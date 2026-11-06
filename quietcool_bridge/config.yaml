@@ -1,5 +1,5 @@
 name: "QuietCool Setup Bridge"
-version: "1.0.0"
+version: "1.1.0"
 slug: "quietcool_setup_bridge"
 description: "Provision a QuietCool ESPHome device over its fallback Wi-Fi from Home Assistant Yellow."
 arch:
@@ -12,3 +12,7 @@ ingress_port: 8099
 panel_admin: true
 panel_title: "QuietCool Setup"
 panel_icon: "mdi:wifi-cog"
+
+# Needed only for scanning and changing the Yellow Wi-Fi interface.
+hassio_api: true
+hassio_role: manager
