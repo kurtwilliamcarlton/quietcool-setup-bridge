@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>QuietCool Setup Bridge</title>
+  <link rel="stylesheet" href="app.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="eyebrow">HOME ASSISTANT YELLOW · DEVICE PROVISIONING</div>
+      <h1>QuietCool Setup Bridge</h1>
+      <p>Configure an ESP32 on its fallback Wi-Fi without changing your phone or laptop's network.</p>
+    </header>
+
+    <section class="status card" aria-live="polite">
+      <div class="statusheading">
+        <h2>Device connection</h2>
+        <span id="statusBadge" class="pill waiting">Checking…</span>
+      </div>
+      <div class="grid2">
+        <div><span class="small">Fallback Wi-Fi</span><strong>QuietCool Fallback</strong></div>
+        <div><span class="small">Device address</span><strong>192.168.4.1</strong></div>
+        <div><span class="small">Device name</span><strong id="deviceName">—</strong></div>
+        <div><span class="small">Device MAC</span><strong id="deviceMac">—</strong></div>
+      </div>
+      <p class="help" id="statusText">Checking the captive portal through the Yellow's Wi-Fi connection…</p>
+      <div class="actions">
+        <button type="button" id="checkBtn">Check connection</button>
+        <span class="small">Native Wi-Fi provisioning through ESPHome</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Configure home Wi-Fi</h2>
+      <p class="help">Select a network seen by the ESP32 or enter a network name manually. Your password is sent through Home Assistant to the ESP32. The bridge does not store it. The ESP32 connection uses unencrypted HTTP.</p>
+      <form id="setupForm" autocomplete="off">
+        <label for="networks">Detected networks</label>
+        <select id="networks"><option value="">Select network (optional)</option></select>
+        <label for="ssid">Home Wi-Fi name (SSID)</label>
+        <input id="ssid" name="ssid" required maxlength="32" placeholder="Your home Wi-Fi network" autocomplete="off">
+        <label for="psk">Wi-Fi password</label>
+        <input id="psk" name="psk" type="password" placeholder="8–63 characters for WPA2" autocomplete="new-password">
+        <label class="checkboxrow"><input type="checkbox" id="showPassword"> Show password</label>
+        <button type="submit" class="primary" id="submitBtn">Save Wi-Fi to ESP32</button>
+      </form>
+      <p id="saveResult" class="result" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>What happens after saving?</h2>
+      <div class="steps">
+        <div><span class="stepNumber">1</span><span>ESP32 saves the new Wi-Fi settings.</span></div>
+        <div><span class="stepNumber">2</span><span>It attempts to join your home network; <strong>QuietCool Fallback may disappear</strong>.</span></div>
+        <div><span class="stepNumber">3</span><span>Check your router / Home Assistant ESPHome integration or try <code>quietcool.local</code> on your home network.</span></div>
+      </div>
+      <p class="help">If setup fails, confirm the Yellow's Wi-Fi interface still shows an address on 192.168.4.x and the ESP32 is broadcasting its fallback AP.</p>
+    </section>
+
+    <footer>
+      <span>Home Assistant Ingress · No extra port exposed</span>
+      <span>Bridge v1.0 · Wi-Fi setup only · Firmware upload disabled</span>
+    </footer>
+  </main>
+</body>
+</html>
