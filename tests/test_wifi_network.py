@@ -9,11 +9,29 @@ spec = importlib.util.spec_from_file_location("quietcool_bridge_test", module_pa
 bridge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bridge)
 
-ETHERNET = {"interface": "end0", "type": "ethernet", "connected": True, "primary": True}
+ETHERNET = {"interface": "end0", "type": "ethernet", "connected": True, "primary": True, "enabled": True, "ipv4": {"address": ["192.168.33.202/24"], "ready": True}}
 WIFI = {"interface": "wlan0", "type": "wireless", "enabled": True, "primary": False,
         "connected": False, "wifi": None}
 
 class WifiBehaviorTests(unittest.TestCase):
+    def test_ethernet_guard_rejects_unplugged(self):
+        unplugged = dict(ETHERNET, connected=False)
+        with patch.object(bridge, "network_info", return_value={"interfaces": [unplugged, WIFI]}):
+            self.assertFalse(bridge.ethernet_status()["ethernet_ready"])
+            with self.assertRaises(ValueError):
+                bridge.connect_fallback("examplepass123")
+
+    def test_ethernet_guard_requires_ip(self):
+        no_ip = dict(ETHERNET, ipv4={"address": [], "ready": False})
+        with patch.object(bridge, "network_info", return_value={"interfaces": [no_ip, WIFI]}):
+            self.assertFalse(bridge.ethernet_status()["ethernet_ready"])
+
+    def test_ethernet_guard_healthy(self):
+        with patch.object(bridge, "network_info", return_value={"interfaces": [ETHERNET, WIFI]}):
+            status = bridge.ethernet_status()
+            self.assertTrue(status["ethernet_ready"])
+            self.assertEqual(status["ethernet_ip"], "192.168.33.202/24")
+
     def test_status_never_attempts_connect(self):
         with patch.object(bridge, "network_info", return_value={"interfaces": [ETHERNET, WIFI]}), patch.object(bridge, "supervisor_request") as sup:
             status = bridge.wifi_status()
