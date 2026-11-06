@@ -100,7 +100,8 @@ class ServerTests(unittest.TestCase):
             upstream.assert_not_called()
 
     def test_reject_short_psk(self):
-        status, data = self.post({"ssid": "ExampleHome", "psk": "short"})
+        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": True}):
+            status, data = self.post({"ssid": "ExampleHome", "psk": "short"})
         self.assertEqual(status, 400)
         self.assertFalse(data["ok"])
 
