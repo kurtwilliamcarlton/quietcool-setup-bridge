@@ -83,3 +83,10 @@ The tests simulate the ESPHome captive portal; they do not replace on-device tes
 - `tests/` — Isolated tests.
 
 **License:** No open-source license has been selected. All rights reserved by default until the repository owner chooses one.
+## v1.1 development: temporary access-point connection
+
+The Home Assistant Yellow remains on **primary Ethernet (end0)**. The bridge can scan Wi-Fi networks using the Supervisor API, then connect secondary Wi-Fi (wlan0) to the exact `QuietCool Fallback` SSID after an explicit button press. There is **no automatic reconnection or background auto-connect** code in the bridge.
+
+**Finish setup:** After saving the ESP32's home Wi-Fi credentials and independently confirming the ESP32 is accessible on the home LAN, press **Disconnect & Disable Yellow Wi-Fi**. This uses the Supervisor network API to persistently set `wlan0.enabled=false`. It does **not** delete the adapter or remove Ethernet, but prevents the Yellow from automatically rejoining the fallback access point if the ESP32 is reset later. If you skip this step, a saved Wi-Fi profile could reconnect; the bridge does not claim to prevent this until the interface is disabled.
+
+**To connect again later:** Re-enable wlan0 with the Connect button or in Home Assistant's Network settings. The app requires Supervisor manager-role networking permissions, so only trusted administrators should access it. This is experimental and has not been hardware-tested. Verify Ethernet connectivity before making Wi-Fi changes.
