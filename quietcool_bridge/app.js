@@ -39,6 +39,7 @@ $('networks').addEventListener('change', e => { if (e.target.value) $('ssid').va
 $('showPassword').addEventListener('change', e => { $('psk').type = e.target.checked ? 'text' : 'password'; });
 $('setupForm').addEventListener('submit', async e => {
   e.preventDefault();
+  if (!ethernetReady) return wifiMessage('Ethernet must be connected before configuring ESP32 Wi-Fi.', false);
   const ssid = $('ssid').value;
   const psk = $('psk').value;
   const msg = $('saveResult');
@@ -57,7 +58,7 @@ $('setupForm').addEventListener('submit', async e => {
     msg.className = 'result error';
     msg.textContent = 'Could not confirm the change. Check whether the ESP32 has already joined your home Wi-Fi.';
   } finally {
-    $('submitBtn').disabled = false;
+    $('submitBtn').disabled = !ethernetReady;
   }
 });
 refreshDevice();
