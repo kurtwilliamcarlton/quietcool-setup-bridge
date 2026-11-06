@@ -1,5 +1,5 @@
 name: "QuietCool Setup Bridge"
-version: "1.4.0"
+version: "1.5.0"
 slug: "quietcool_setup_bridge"
 description: "Provision a QuietCool ESPHome device over its fallback Wi-Fi from Home Assistant Yellow."
 arch:
