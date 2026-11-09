@@ -89,7 +89,7 @@ class ServerTests(unittest.TestCase):
         def record(path, timeout=5):
             sent.append(path)
             return self.fake_request(path, timeout)
-        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": True}), patch.object(bridge, "ethernet_guard", return_value={}), patch.object(bridge, "device_request", record):
+        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": True}), patch.object(bridge, "ethernet_guard", return_value={}), patch.object(bridge, "device_request", record), patch.object(bridge, "require_fallback_connection", return_value={}):
             status, data = self.post({"ssid": "ExampleHome", "psk": "samplepass123", "expected_mac": "AA:BB:CC:DD:EE:02"})
         self.assertEqual(status, 409)
         self.assertFalse(data["ok"])
@@ -103,7 +103,7 @@ class ServerTests(unittest.TestCase):
         upstream.assert_not_called()
 
     def test_missing_mac_requires_reidentify(self):
-        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": True}), patch.object(bridge, "ethernet_guard", return_value={}), patch.object(bridge, "device_request") as upstream:
+        with patch.object(bridge, "ethernet_status", return_value={"ethernet_ready": True}), patch.object(bridge, "ethernet_guard", return_value={}), patch.object(bridge, "device_request") as upstream, patch.object(bridge, "require_fallback_connection", return_value={}):
             status, data = self.post({"ssid": "ExampleHome", "psk": "samplepass123"})
             self.assertEqual(status, 409)
             upstream.assert_not_called()
