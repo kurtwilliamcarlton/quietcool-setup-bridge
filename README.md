@@ -110,3 +110,7 @@ The wizard now remembers the ESP32 MAC observed at Step 4 and requires the capti
 ## v1.6 — existing QuietCool device awareness
 
 Step 3 reads Home Assistant's ESPHome config entries to indicate whether a QuietCool integration title already exists. This optional read-only check requires `homeassistant_api: true`; it does not remove or update existing integrations. If an integration has a different name or cannot be read, the app explicitly describes the uncertainty. The bridge can still scan for QuietCool Fallback and, with user approval, connect to the temporary setup network and reconfigure the device's home Wi-Fi without firmware flashing. Only an ESP32 actually broadcasting fallback Wi-Fi can be configured through this path.
+
+## v1.7 fail-closed network safety
+
+The bridge now verifies both networks before contacting the ESP32: primary Ethernet must be healthy and secondary wlan0 must actually be connected to QuietCool Fallback. If the latter is unavailable, the bridge refuses to identify or provision the ESP32 rather than risking a request over an unexpected route. This supplements the existing captive-portal device name and MAC checks. Ethernet-only LAN discovery remains available after the ESP32 joins home Wi-Fi. Each LAN probe fails independently, so one unreliable network host does not stop scanning.
