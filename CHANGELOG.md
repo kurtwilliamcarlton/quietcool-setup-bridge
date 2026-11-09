@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.0 — fail-closed bridge hardening
+
+- Require an active secondary wlan0 connection to QuietCool Fallback before identifying the ESP32 or sending Wi-Fi credentials, in addition to the existing primary Ethernet safety check.
+- Reject Wi-Fi provisioning with a clear HTTP 409 response when fallback is disconnected.
+- Recheck fallback immediately before sending credentials, reducing the risk of routing to an unrelated device.
+- Isolate individual LAN discovery probe failures so a single faulty or unreachable LAN host cannot abort the scan.
+- Preserve manual connection, MAC comparison, and explicit Wi-Fi cleanup.
+
 ## 1.6.0 — recognize existing QuietCool devices
 
 - Step 3 checks Home Assistant for existing ESPHome integration entries named QuietCool and displays their status.
