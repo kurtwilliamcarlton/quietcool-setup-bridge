@@ -120,6 +120,14 @@ def wifi_status():
     return {"ethernet": bool(ethernet.get("connected")), "wifi_enabled": bool(wifi.get("enabled")), "wifi_connected": bool(wifi.get("connected")), "ssid": active_ssid, "fallback_connected": active_ssid == FALLBACK_SSID}
 
 
+def require_fallback_connection():
+    """Fail closed unless wlan0 is actually connected to QuietCool Fallback."""
+    status = wifi_status()
+    if not status["fallback_connected"] or not status["wifi_enabled"]:
+        raise ValueError("Connect wlan0 to QuietCool Fallback before provisioning")
+    return status
+
+
 def scan_fallback():
     checked_interfaces()
     data = supervisor_request("GET", "/network/interface/wlan0/accesspoints")
@@ -223,7 +231,11 @@ def discover_lan_device():
     with ThreadPoolExecutor(max_workers=24) as pool:
         futures = [pool.submit(_probe_quietcool, ip) for ip in hosts]
         for future in as_completed(futures):
-            match = future.result()
+            try:
+                match = future.result()
+            except Exception:
+                # Failure on an unrelated LAN host must not crash the scan.
+                continue
             if match:
                 matches.append(match)
     ethernet_guard()
@@ -334,6 +346,7 @@ class Handler(BaseHTTPRequestHandler):
             if not ethernet_status()["ethernet_ready"]:
                 return self.json(503, {"connected": False, "message": "Ethernet must be connected before device configuration"})
             try:
+                require_fallback_connection()
                 info = get_config()
                 return self.json(200, {"connected": True, "device": info})
             except (URLError, HTTPError, OSError, ValueError, UnicodeError, json.JSONDecodeError):
@@ -391,6 +404,10 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(psk, str) or (psk and not (8 <= len(psk.encode("utf-8")) <= 63)):
                 return self.json(400, {"ok": False, "message": "Password must be 8-63 bytes, or blank for an open network"})
             ethernet_guard()
+            try:
+                require_fallback_connection()
+            except ValueError:
+                return self.json(409, {"ok": False, "message": "Connect Yellow to QuietCool Fallback before sending Wi-Fi credentials."})
             # The browser remembers the fallback MAC during Step 4. Enforce
             # that the device still has the same MAC immediately before save.
             # This protects against an accidental device switch, but does not
@@ -402,6 +419,7 @@ class Handler(BaseHTTPRequestHandler):
             if observed["mac"] != expected_mac.upper():
                 return self.json(409, {"ok": False, "message": "ESP32 identity changed! Stop setup and recheck the device on Step 4."})
             ethernet_guard()
+            require_fallback_connection()
             query = urlencode({"ssid": ssid, "psk": psk})
             status, _, _ = device_request("/wifisave?" + query, timeout=7)
             if status != 200:
